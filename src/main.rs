@@ -65,11 +65,11 @@ struct BoardSpace {
 }
 
 impl BoardSpace {
-    fn new(coordinates: Coordinates) -> BoardSpace {
+    fn new(coordinates: Coordinates, steps_from_finish: usize) -> BoardSpace {
         BoardSpace {
             console_location: cursor::Goto((coordinates.x as u16)+1, (coordinates.y as u16)+2),
             coordinates: coordinates,
-            steps_from_finish: 0
+            steps_from_finish
         }
     }
 }
@@ -91,6 +91,8 @@ fn make_odd(i: usize) -> usize {
 
 
 struct MazeGame {
+    height: usize,
+    width: usize,
     board: Vec<Vec<Option<Rc<BoardSpace>>>>,
     start: Rc<BoardSpace>,
     end: Rc<BoardSpace>,
@@ -111,11 +113,12 @@ impl MazeGame {
 
         let board = vec![vec![None; width]; height];
 
-        let start_space = Rc::new(BoardSpace::new(Coordinates { x: start_x as isize, y: 0 }));
-        let end_space = Rc::new(BoardSpace::new(Coordinates { x: end_x as isize, y: (height as isize)-1 }));
-        // steps_from_finish: height*width
+        let start_space = Rc::new(BoardSpace::new(Coordinates { x: start_x as isize, y: 0 }, height*width));
+        let end_space = Rc::new(BoardSpace::new(Coordinates { x: end_x as isize, y: (height as isize)-1 }, 0));
 
         MazeGame {
+            height,
+            width,
             board: board,
             start: start_space.clone(),
             end: end_space,
@@ -154,8 +157,11 @@ impl MazeGame {
     }
 
     fn get_space(&self, coordinates: &Coordinates) -> Result<Option<&Rc<BoardSpace>>, String> {
-        let row = self.board.get(coordinates.y as usize);
         let err_msg = format!("Invalid coordinates {:?}", coordinates);
+        if self.is_valid_coordinates(coordinates) == false {
+            return Err(err_msg);
+        }
+        let row = self.board.get(coordinates.y as usize);
         match row {
             Some(row) => {
                 match row.get(coordinates.x as usize) {
@@ -168,11 +174,16 @@ impl MazeGame {
     }
 
     fn is_valid_coordinates(&self, coordinates: &Coordinates) -> bool {
-        return if coordinates.x < 0 || coordinates.y < 0 || self.get_space(coordinates).is_err(){
-            false
-        } else {
+        return if 0 < coordinates.x || (coordinates.x as usize) < self.width || coordinates.y > 0 || (coordinates.y as usize) < self.height {
             true
+        } else {
+            false
         }
+    }
+
+    fn is_valid_space(&self, coordinates: &Coordinates) -> bool {
+        let space = self.get_space(coordinates);
+        space.is_ok() && space.unwrap().is_some()
     }
 
     fn get_random_directions(&self, current_coordinates: &Coordinates) -> Vec<(Coordinates, Coordinates)> {
@@ -202,12 +213,12 @@ impl MazeGame {
         self.board[y][x].as_ref()
     }
 
-    fn set_new_space(&mut self, coordinates: &Coordinates) -> Option<&Rc<BoardSpace>> {
-        let new_space = Rc::new(BoardSpace::new(coordinates.clone()));
+    fn set_new_space(&mut self, coordinates: &Coordinates, steps: usize) -> Option<&Rc<BoardSpace>> {
+        let new_space = Rc::new(BoardSpace::new(coordinates.clone(), steps));
         self.set_space(new_space)
     }
 
-    fn make_next_move(&mut self, current_coordinates: &Coordinates) {
+    fn make_next_move(&mut self, current_coordinates: &Coordinates, steps: usize) {
         let random_directions = self.get_random_directions(current_coordinates);
 
         for direction in random_directions.iter() {
@@ -218,13 +229,13 @@ impl MazeGame {
                 continue;
             }
 
-            self.set_new_space(wall);
-            self.set_new_space(new_coordinates);
+            self.set_new_space(wall, steps+1);
+            self.set_new_space(new_coordinates, steps+2);
 
             self.print_maze();
             sleep_ms(10);
 
-            self.make_next_move(new_coordinates);
+            self.make_next_move(new_coordinates, steps+2);
         }
     }
 
@@ -235,8 +246,32 @@ impl MazeGame {
         // Building the maze in reverse seems to generate better mazes
         let first_move_coordinates = self.end.coordinates.up(1);
 
-        self.make_next_move(&first_move_coordinates);
-        self.set_new_space(&first_move_coordinates);
+        self.set_new_space(&first_move_coordinates, self.end.steps_from_finish+1);
+        self.make_next_move(&first_move_coordinates, self.end.steps_from_finish+1);
+    }
+
+    fn auto_move(&self) -> Result<Option<&Rc<BoardSpace>>, String> {
+        let directions = vec!(
+            self.user_space.coordinates.up(1),
+            self.user_space.coordinates.down(1),
+            self.user_space.coordinates.left(1),
+            self.user_space.coordinates.right(1)
+        );
+
+        let spaces: Vec<&Rc<BoardSpace>> = directions.iter()
+            .filter(|c| self.is_valid_space(c))
+            .map(|c| self.get_space(c).unwrap().unwrap())
+            .collect();
+
+        let mut min_space: Option<&Rc<BoardSpace>> = None;
+
+        for space in spaces.iter() {
+            if min_space.is_none() || min_space.unwrap().steps_from_finish > space.steps_from_finish {
+                min_space = Some(space);
+            }
+        }
+
+        Ok(min_space)
     }
 
     pub fn play(&mut self) {
@@ -247,19 +282,17 @@ impl MazeGame {
         let mut std_out = stdout().into_raw_mode().unwrap();
 
         for key in std_in.keys() {
-            let direction = match key.unwrap() {
-                Key::Up => Coordinates::up,
-                Key::Down => Coordinates::down,
-                Key::Left => Coordinates::left,
-                Key::Right => Coordinates::right,
+            let new_user_location = match key.unwrap() {
+                Key::Up => self.get_space(&self.user_space.coordinates.up(1)),
+                Key::Down => self.get_space(&self.user_space.coordinates.down(1)),
+                Key::Left => self.get_space(&self.user_space.coordinates.left(1)),
+                Key::Right => self.get_space(&self.user_space.coordinates.right(1)),
                 Key::Char('q') | Key::Esc | Key::Ctrl('c') => { break; },
+                Key::Char(' ') => { self.auto_move() }
                 _ => { continue; }
             };
 
             std_out.flush().unwrap();
-            let new_user_coordinates = direction(&self.user_space.coordinates, 1);
-
-            let new_user_location = self.get_space(&new_user_coordinates);
 
             if let Ok(Some(new_space)) = new_user_location {
                 let new_space = new_space.clone();
