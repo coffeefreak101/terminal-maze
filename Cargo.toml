@@ -2,10 +2,12 @@
 name = "maze"
 version = "0.1.0"
 authors = ["John Mears <coffeefreak101@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = "0.7.0"
-termion = "1.5.3"
+clap = { version = "4.5.1", features = ["derive"] }
+crossterm = "0.27.0"
+rand = "0.8.5"
+ratatui = "0.26.1"
