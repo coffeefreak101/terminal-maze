@@ -25,3 +25,4 @@ cargo run -- -h
 - Use <kbd>&larr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd> to move.
 - Use <kbd>Esc</kbd> or <kbd>q</kbd> to quit.
 - Use <kbd>Space</kbd> to get a hint!
+- Use <kbd>b</kbd> to show a trail of breadcrumbs.

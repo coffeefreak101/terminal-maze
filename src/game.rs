@@ -13,10 +13,12 @@ pub struct Game {
     maze: Maze,
     player_coordinates: Coordinates,
     end_coordinates: Coordinates,
+    breadcrumbs: Vec<Coordinates>,
+    enable_breadcrumbs: bool,
 }
 
 impl Game {
-    pub fn new(mut maze: Maze) -> Self {
+    pub fn new(mut maze: Maze, enable_breadcrumbs: bool) -> Self {
         let width = maze.width();
         let height = maze.height();
 
@@ -32,6 +34,8 @@ impl Game {
             maze,
             player_coordinates: start,
             end_coordinates: end,
+            breadcrumbs: Vec::with_capacity(width * height),
+            enable_breadcrumbs,
         }
     }
 
@@ -45,6 +49,14 @@ impl Game {
 
     pub fn end(&self) -> &Coordinates {
         &self.end_coordinates
+    }
+
+    pub fn breadcrumbs(&self) -> Option<&Vec<Coordinates>> {
+        if self.enable_breadcrumbs {
+            return Some(&self.breadcrumbs);
+        }
+
+        None
     }
 
     pub fn move_player(&mut self, direction: MoveDirection) -> Result<(), Box<dyn Error>> {
@@ -61,7 +73,7 @@ impl Game {
         }
         .ok_or("cannot move player in that direction")?;
 
-        self.player_coordinates = next_coordinates.clone();
+        self.update_player(next_coordinates.clone());
 
         Ok(())
     }
@@ -92,8 +104,25 @@ impl Game {
             }
         }
 
-        self.player_coordinates = next_move;
+        self.update_player(next_move);
 
         Ok(())
+    }
+
+    fn update_player(&mut self, coordinates: Coordinates) {
+        match self.breadcrumbs.last() {
+            Some(breadcrumb) if *breadcrumb == coordinates => {
+                self.breadcrumbs.pop();
+            },
+            _ => {
+                self.breadcrumbs.push(self.player_coordinates.clone());
+            },
+        };
+
+        self.player_coordinates = coordinates;
+    }
+
+    pub fn toggle_breadcrumbs(&mut self) {
+        self.enable_breadcrumbs = !self.enable_breadcrumbs;
     }
 }

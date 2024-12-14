@@ -62,6 +62,13 @@ impl CellBuilder {
         location.y -= self.cell_height / 2.0;
         Player::new(location, Color::Cyan)
     }
+
+    fn build_breadcrumb(&self, coordinates: &Coordinates) -> Player {
+        let mut location = self.location_from_coordinates(coordinates);
+        location.x += self.cell_width / 2.0;
+        location.y -= self.cell_height / 2.0;
+        Player::new(location, Color::Red)
+    }
 }
 
 /// The cell is positioned from its top left corner.
@@ -176,6 +183,11 @@ pub fn render(frame: &mut Frame, game: &Game) {
                     ctx.draw(&builder.build_cell(node));
                 }
             }
+
+            game.breadcrumbs().into_iter().flatten().for_each(|bc| {
+                ctx.draw(&builder.build_breadcrumb(bc));
+            });
+
             ctx.draw(&builder.build_player(game.player()))
         });
 

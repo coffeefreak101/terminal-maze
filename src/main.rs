@@ -32,6 +32,7 @@ enum GameEvent {
     Quit,
     MovePlayer(MoveDirection),
     AutoMove,
+    ToggleBreadcrumbs,
     Error(Box<dyn Error>),
 }
 
@@ -44,6 +45,7 @@ fn event_listener() -> GameEvent {
                 KeyCode::Left => GameEvent::MovePlayer(MoveDirection::Left),
                 KeyCode::Right => GameEvent::MovePlayer(MoveDirection::Right),
                 KeyCode::Char('q') | KeyCode::Esc => GameEvent::Quit,
+                KeyCode::Char('b') => GameEvent::ToggleBreadcrumbs,
                 KeyCode::Char(' ') => GameEvent::AutoMove,
                 _ => continue,
             },
@@ -69,6 +71,7 @@ fn play_game(
                 }
             },
             GameEvent::AutoMove => game.auto_move()?,
+            GameEvent::ToggleBreadcrumbs => game.toggle_breadcrumbs(),
             GameEvent::Quit => break,
             GameEvent::Error(err) => {
                 return Err(err);
@@ -89,8 +92,12 @@ fn play_game(
 struct Config {
     #[arg(long = "height", default_value = "10")]
     height: usize,
+
     #[arg(long = "width", default_value = "10")]
     width: usize,
+
+    #[arg(long = "breadcrumbs", help = "Show red dots along your path")]
+    breadcrumbs: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -102,7 +109,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let terminal = Terminal::new(backend)?;
 
     let maze = Maze::new(config.height, config.width);
-    let game = Game::new(maze);
+    let game = Game::new(maze, config.breadcrumbs);
 
     let result = play_game(game, terminal);
 
