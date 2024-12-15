@@ -82,11 +82,11 @@ impl Coordinates {
 #[derive(Default, Clone)]
 pub struct Node {
     steps: usize,
-    pub coordinates: Coordinates,
-    pub up: Option<Coordinates>,
-    pub down: Option<Coordinates>,
-    pub left: Option<Coordinates>,
-    pub right: Option<Coordinates>,
+    coordinates: Coordinates,
+    up: Option<Coordinates>,
+    down: Option<Coordinates>,
+    left: Option<Coordinates>,
+    right: Option<Coordinates>,
 }
 
 impl Node {
@@ -99,8 +99,28 @@ impl Node {
         }
     }
 
+    pub fn up(&self) -> Option<&Coordinates> {
+        self.up.as_ref()
+    }
+
+    pub fn down(&self) -> Option<&Coordinates> {
+        self.down.as_ref()
+    }
+
+    pub fn left(&self) -> Option<&Coordinates> {
+        self.left.as_ref()
+    }
+
+    pub fn right(&self) -> Option<&Coordinates> {
+        self.right.as_ref()
+    }
+
     fn set_coordinates(&mut self, coordinates: Coordinates) {
         self.coordinates = coordinates;
+    }
+
+    pub fn get_coordinates(&self) -> &Coordinates {
+        &self.coordinates
     }
 
     fn has_edges(&self) -> bool {

@@ -1,9 +1,10 @@
 mod game;
 mod maze;
+mod mode;
 mod view;
 
 use crate::game::{Game, MoveDirection};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use crossterm::event::Event::Key;
 use crossterm::event::KeyCode;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -13,6 +14,20 @@ use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use std::error::Error;
 use std::io::{stdout, Stdout};
+
+enum GameEvent {
+    Quit,
+    MovePlayer(MoveDirection),
+    AutoMove,
+    ToggleBreadcrumbs,
+    Error(Box<dyn Error>),
+}
+
+#[derive(Clone, Debug, ValueEnum)]
+pub enum GameMode {
+    Play,
+    Watch,
+}
 
 fn setup_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>, Box<dyn Error>> {
     let mut stdout = stdout();
@@ -26,14 +41,6 @@ fn teardown_terminal() -> Result<(), Box<dyn Error>> {
     terminal::disable_raw_mode()?;
     execute!(stdout, LeaveAlternateScreen)?;
     Ok(())
-}
-
-enum GameEvent {
-    Quit,
-    MovePlayer(MoveDirection),
-    AutoMove,
-    ToggleBreadcrumbs,
-    Error(Box<dyn Error>),
 }
 
 fn event_listener() -> GameEvent {
@@ -55,38 +62,6 @@ fn event_listener() -> GameEvent {
     }
 }
 
-fn play_game(
-    mut game: Game,
-    mut terminal: Terminal<CrosstermBackend<Stdout>>,
-) -> Result<bool, Box<dyn Error>> {
-    let mut player_won = false;
-
-    loop {
-        terminal.draw(|frame| view::render(frame, &game))?;
-
-        match event_listener() {
-            GameEvent::MovePlayer(direction) => {
-                if game.move_player(direction).is_err() {
-                    continue;
-                }
-            },
-            GameEvent::AutoMove => game.auto_move()?,
-            GameEvent::ToggleBreadcrumbs => game.toggle_breadcrumbs(),
-            GameEvent::Quit => break,
-            GameEvent::Error(err) => {
-                return Err(err);
-            },
-        }
-
-        if game.player() == game.end() {
-            player_won = true;
-            break;
-        }
-    }
-
-    Ok(player_won)
-}
-
 #[derive(Parser, Debug)]
 #[command(about = "Terminal maze game")]
 struct Config {
@@ -96,8 +71,21 @@ struct Config {
     #[arg(long = "width", default_value = "10")]
     width: usize,
 
-    #[arg(long = "breadcrumbs", help = "Show red dots along your path")]
+    #[arg(
+        short = 'b',
+        long = "breadcrumbs",
+        help = "Show red dots along your path"
+    )]
     breadcrumbs: bool,
+
+    #[arg(
+        short = 'm',
+        long = "mode",
+        value_enum,
+        default_value = "play",
+        help = "Watch the game solve the maze"
+    )]
+    mode: GameMode,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -111,7 +99,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let maze = Maze::new(config.height, config.width);
     let game = Game::new(maze, config.breadcrumbs);
 
-    let result = play_game(game, terminal);
+    let result = match config.mode {
+        GameMode::Play => mode::play_game(game, terminal),
+        GameMode::Watch => mode::watch_game(game, terminal),
+    };
 
     teardown_terminal()?;
 

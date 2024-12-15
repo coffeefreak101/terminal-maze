@@ -66,16 +66,20 @@ impl Game {
             .ok_or("player is outside of the maze")?;
 
         let next_coordinates = match direction {
-            MoveDirection::Up => curr_node.up.as_ref(),
-            MoveDirection::Down => curr_node.down.as_ref(),
-            MoveDirection::Left => curr_node.left.as_ref(),
-            MoveDirection::Right => curr_node.right.as_ref(),
+            MoveDirection::Up => curr_node.up(),
+            MoveDirection::Down => curr_node.down(),
+            MoveDirection::Left => curr_node.left(),
+            MoveDirection::Right => curr_node.right(),
         }
         .ok_or("cannot move player in that direction")?;
 
         self.update_player(next_coordinates.clone());
 
         Ok(())
+    }
+
+    pub fn move_player_coordinates(&mut self, coordinates: Coordinates) {
+        self.update_player(coordinates);
     }
 
     pub fn auto_move(&mut self) -> Result<(), Box<dyn Error>> {
@@ -88,10 +92,10 @@ impl Game {
         let mut next_move = Coordinates::default();
 
         for coordinates in [
-            curr_node.up.as_ref(),
-            curr_node.down.as_ref(),
-            curr_node.left.as_ref(),
-            curr_node.right.as_ref(),
+            curr_node.up(),
+            curr_node.down(),
+            curr_node.left(),
+            curr_node.right(),
         ]
         .into_iter()
         .flatten()

@@ -42,17 +42,17 @@ impl CellBuilder {
     }
 
     fn build_cell(&self, node: &Node) -> Cell {
-        let location = self.location_from_coordinates(&node.coordinates);
+        let location = self.location_from_coordinates(node.get_coordinates());
         Cell {
             x: location.x,
             y: location.y,
             height: self.cell_height,
             width: self.cell_width,
             color: self.color,
-            top: node.up.is_none(),
-            bottom: node.down.is_none(),
-            left: node.left.is_none(),
-            right: node.right.is_none(),
+            top: node.up().is_none(),
+            bottom: node.down().is_none(),
+            left: node.left().is_none(),
+            right: node.right().is_none(),
         }
     }
 
